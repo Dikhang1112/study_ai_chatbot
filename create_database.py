@@ -1,24 +1,22 @@
 # from langchain.document_loaders import DirectoryLoader
-from langchain_community.document_loaders import DirectoryLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.schema import Document
-# from langchain.embeddings import OpenAIEmbeddings
-from langchain_openai import OpenAIEmbeddings
-from langchain_community.vectorstores import Chroma
-import openai 
-from dotenv import load_dotenv
 import os
 import shutil
+from pathlib import Path
 
-# Load environment variables. Assumes that project contains .env file with API keys
+from dotenv import load_dotenv
+from langchain.schema import Document
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import DirectoryLoader, PyMuPDFLoader, TextLoader
+from langchain_community.vectorstores import Chroma
+# from langchain.embeddings import OpenAIEmbeddings
+from langchain_openai import OpenAIEmbeddings
+
 load_dotenv()
-#---- Set OpenAI API key 
-# Change environment variable name from "OPENAI_API_KEY" to the name given in 
+# ---- Set OpenAI API key
 # your .env file.
-openai.api_key = os.environ['OPENAI_API_KEY']
-
+DATA_PATHS = ["data/documents", "data/uploads"]
 CHROMA_PATH = "chroma"
-DATA_PATH = "data/books"
+EMB_MODEL = "text-embedding-3-small"
 
 
 def main():
@@ -32,38 +30,52 @@ def generate_data_store():
 
 
 def load_documents():
-    loader = DirectoryLoader(DATA_PATH, glob="*.md")
-    documents = loader.load()
-    return documents
+    docs = []
+    for base in DATA_PATHS:
+        base = Path(base)
+        if not base.exists():
+            continue
+        # PDF bằng PyMuPDF (mạnh, nhanh)
+        pdf_loader = DirectoryLoader(
+            str(base),
+            glob="**/*.pdf",
+            loader_cls=PyMuPDFLoader
+        )
+        docs += pdf_loader.load()
+
+        # Markdown/Text
+        md_loader = DirectoryLoader(
+            str(base),
+            glob="**/*.md",
+            loader_cls=lambda p: TextLoader(p, encoding="utf-8")
+        )
+        docs += md_loader.load()
+    return docs
 
 
 def split_text(documents: list[Document]):
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=300,
-        chunk_overlap=100,
-        length_function=len,
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=900,  # tăng để giảm số lần gọi API
+        chunk_overlap=120,
         add_start_index=True,
+        length_function=len,
     )
-    chunks = text_splitter.split_documents(documents)
+    chunks = splitter.split_documents(documents)
     print(f"Split {len(documents)} documents into {len(chunks)} chunks.")
-
-    document = chunks[10]
-    print(document.page_content)
-    print(document.metadata)
-
     return chunks
 
 
 def save_to_chroma(chunks: list[Document]):
-    # Clear out the database first.
+    # xóa index cũ nếu bạn muốn rebuild full
     if os.path.exists(CHROMA_PATH):
         shutil.rmtree(CHROMA_PATH)
 
-    # Create a new DB from the documents.
     db = Chroma.from_documents(
-        chunks, OpenAIEmbeddings(), persist_directory=CHROMA_PATH
+        chunks,
+        OpenAIEmbeddings(model=EMB_MODEL),
+        persist_directory=CHROMA_PATH
     )
-    db.persist()
+    print(f"Chroma collections: {db._collection.count()} documents stored.")
     print(f"Saved {len(chunks)} chunks to {CHROMA_PATH}.")
 
 
