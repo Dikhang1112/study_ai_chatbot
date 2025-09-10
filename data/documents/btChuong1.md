@@ -1,7 +1,7 @@
 Lời giải trắc nghiệm
 
-Câu 1: Câu nào sau đây không phải là mệnh đề
-Giải thích: "Bạn học giỏi quá!" không phải là mệnh đề, đây là câu cảm thán, không có tính chất đúng sai
+Câu 1: Câu nào sau đây là mệnh đề
+Giải thích: "Các bạn rất chăm học" là mệnh đề vì nó phải câu cảm thán hoặc là câu hỏi
 
 Câu 2: Trong các câu sau, câu nào là mệnh đề đúng
 Giải thích: "12 là số tự nhiên lẻ" là mệnh đề vì đó là một câu khẳng định, không cần xét đến tính chất đúng sai
